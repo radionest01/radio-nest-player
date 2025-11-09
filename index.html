@@ -1,15 +1,16 @@
 <script>
-  window.onload = function () {
+  document.addEventListener("DOMContentLoaded", function () {
     const params = new URLSearchParams(window.location.search);
     const streamURL = params.get("stream") || "https://ecpro.myradionest.com:1065/stream";
     const metadataURL = params.get("meta") || "https://ecpro.myradionest.com:1065/status-json.xsl";
     const fallbackLogo = "https://i.ibb.co/hFPZYTvM/Fallback-Album-Art.png";
 
     const audio = document.getElementById("audio");
-    audio.src = streamURL;
-
     const albumArt = document.getElementById("albumArt");
-    let lastSong = "";
+    const playPause = document.getElementById("playPause");
+    const liveBadge = document.getElementById("liveBadge");
+
+    audio.src = streamURL;
 
     function cleanMetadata(str) {
       return str.replace(/\(.*?\)|\[.*?\]|feat\.|ft\./gi, "").trim();
@@ -18,7 +19,6 @@
     function fetchCoverArt(artist) {
       const apiKey = "123";
       const url = `https://www.theaudiodb.com/api/v1/json/${apiKey}/search.php?s=${encodeURIComponent(artist)}`;
-
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -40,27 +40,15 @@
         .then(res => res.json())
         .then(data => {
           const raw = data?.icestats?.source?.title || "";
-          if (!raw || raw === lastSong) return;
-
-          lastSong = raw;
+          if (!raw) return;
           let [artist, title] = raw.split(" - ");
           artist = cleanMetadata(artist || "Radio");
           title = cleanMetadata(title || "Radio");
-
-          if (artist.toLowerCase() === "unknown") artist = "Radio";
-          if (title.toLowerCase() === "unknown") title = "Radio";
-
           document.getElementById("trackTitle").textContent = title;
           document.getElementById("trackArtist").textContent = artist;
-
-          if (artist !== "My Radio" && title !== "Radio") {
-            fetchCoverArt(artist);
-          } else {
-            albumArt.src = fallbackLogo;
-          }
+          fetchCoverArt(artist);
         })
-        .catch(err => {
-          console.error("Metadata fetch failed:", err);
+        .catch(() => {
           albumArt.src = fallbackLogo;
         });
     }
@@ -68,24 +56,20 @@
     updatePlayer();
     setInterval(updatePlayer, 15000);
 
-    document.getElementById("playPause").addEventListener("click", () => {
-      const button = document.getElementById("playPause");
-      const badge = document.getElementById("liveBadge");
-
+    playPause.addEventListener("click", () => {
       if (audio.paused) {
         audio.play().then(() => {
-          button.textContent = "⏸";
-          button.classList.add("playing");
-          badge.style.display = "inline-block";
-          badge.classList.add("glow");
-        }).catch(err => {
-          console.error("Playback failed:", err);
+          playPause.textContent = "⏸";
+          playPause.classList.add("playing");
+          liveBadge.style.display = "inline-block";
+          liveBadge.classList.add("glow");
         });
       } else {
         audio.pause();
-        button.textContent = "▶";
-        button.classList.remove("playing");
-        badge.style.display = "none";
+        playPause.textContent = "▶";
+        playPause.classList.remove("playing");
+        liveBadge.style.display = "none";
+        liveBadge.classList.remove("glow");
       }
     });
 
@@ -98,5 +82,5 @@
       player.classList.toggle("dark-theme");
       player.classList.toggle("light-theme");
     });
-  };
+  });
 </script>
