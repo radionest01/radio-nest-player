@@ -176,12 +176,17 @@
     Powered By Radio Nest
   </a>
 
-  <audio id="audio" preload="none" src="https://ecpro.myradionest.com:1065/stream"></audio>
+  <audio id="audio" preload="none"></audio>
 
   <script>
-    const metadataURL = "https://ecpro.myradionest.com:1065/status-json.xsl";
+    const params = new URLSearchParams(window.location.search);
+    const streamURL = params.get("stream") || "https://ecpro.myradionest.com:1065/stream";
+    const metadataURL = params.get("meta") || "https://ecpro.myradionest.com:1065/status-json.xsl";
     const fallbackLogo = "https://i.ibb.co/hFPZYTvM/Fallback-Album-Art.png";
+
     const audio = document.getElementById("audio");
+    audio.src = streamURL;
+
     const albumArt = document.getElementById("albumArt");
     let lastSong = "";
 
@@ -253,6 +258,13 @@
           badge.style.display = "inline-block";
           badge.classList.add("glow");
         }).catch(err => {
+          console.error("Playback failed:", err);
+        });
+      } else {
+        audio.pause();
+        button.textContent = "▶";
+        button.classList.remove("playing");
+       }).catch(err => {
           console.error("Playback failed:", err);
         });
       } else {
