@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Radio Nest Player</title>
+  <style>
+    #radioNestPlayer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      max-width: 260px;
+      margin: 10px auto;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.3);
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      transition: background 0.5s, color 0.5s;
+    }
+
+    #radioNestPlayer.dark-theme {
+      background: #0006b8;
+      color: #ffffff;
+      font-weight: bold;
+    }
+
+    #radioNestPlayer.light-theme {
+      background: #00d9ff;
+      color: #000000;
+      font-weight: bold;
+    }
+
+    #radioNestPlayer.dark-theme .info,
+    #radioNestPlayer.dark-theme .theme-toggle,
+    #radioNestPlayer.dark-theme .controls,
+    #radioNestPlayer.dark-theme .controls label,
+    #radioNestPlayer.dark-theme .info h2,
+    #radioNestPlayer.dark-theme .info p {
+      color: #ffffff;
+      font-weight: bold;
+    }
+
+    #radioNestPlayer.light-theme .info,
+    #radioNestPlayer.light-theme .theme-toggle,
+    #radioNestPlayer.light-theme .controls,
+    #radioNestPlayer.light-theme .controls label,
+    #radioNestPlayer.light-theme .info h2,
+    #radioNestPlayer.light-theme .info p {
+      color: #000000;
+      font-weight: bold;
+    }
+
+    .theme-toggle {
+      margin-top: 6px;
+      font-size: 10px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+      border: 1px solid currentColor;
+      background-color: transparent;
+    }
+
+    .theme-toggle:hover {
+      opacity: 0.85;
+    }
+
+    .live-badge {
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background: #e60000;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    .live-badge.glow {
+      animation: glow 1.5s infinite ease-in-out;
+    }
+
+    @keyframes glow {
+      0% { box-shadow: 0 0 5px #e60000; }
+      50% { box-shadow: 0 0 15px #ff3333; }
+      100% { box-shadow: 0 0 5px #e60000; }
+    }
+
+    .art-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    #albumArt {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      object-fit: cover;
+      transition: opacity 0.8s ease-in-out;
+    }
+
+    #playPause {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.85);
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .info {
+      background: rgba(0,0,0,0.6);
+      padding: 6px;
+      width: 100%;
+      border-radius: 0 0 10px 10px;
+    }
+
+    #radioNestPlayer.light-theme .info {
+      background: rgba(0, 34, 68, 0.1);
+    }
+
+    .info h2, .info p {
+      margin: 2px 0;
+      font-size: 12px;
+    }
+
+    .controls {
+      margin-top: 8px;
+      font-size: 11px;
+    }
+
+    .controls input[type="range"] {
+      width: 100px;
+    }
+
+    #playPause.playing {
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+      50%  { transform: translate(-50%, -50%) scale(1.1); opacity: 0.85; }
+      100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="radioNestPlayer" class="dark-theme">
+  <div id="liveBadge" class="live-badge">LIVE NOW</div>
+
+  <div class="art-wrapper">
+    <img id="albumArt" src="https://i.ibb.co/hFPZYTvM/Fallback-Album-Art.png" alt="Album Art">
+    <button id="playPause">▶</button>
+  </div>
+
+  <div class="info">
+    <h2 id="trackTitle">Radio</h2>
+    <p id="trackArtist">Radio</p>
+  </div>
+
+  <div class="controls">
+    <label for="volume">Volume</label><br>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+  </div>
+
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+  <a href="https://myradionest.com" target="_blank" class="theme-toggle" style="text-align: center;">
+    Powered By Radio Nest
+  </a>
+
+  <audio id="audio" preload="none"></audio>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const streamURL = params.get("stream") || "https://ecpro.myradionest.com:1065/stream";
+    const metadataURL = params.get("meta") || "https://ecpro.myradionest.com:1065/status-json.xsl";
+    const fallbackLogo = "https://i.ibb.co/hFPZYTvM/Fallback-Album-Art.png";
+
+    const audio = document.getElementById("audio");
+    audio.src = streamURL;
+
+    const albumArt = document.getElementById("albumArt");
+    let lastSong = "";
+
+    function cleanMetadata(str) {
+      return str.replace(/\(.*?\)|\[.*?\]|feat\.|ft\./gi, "").trim();
+    }
+
+    function fetchCoverArt(artist) {
+      const apiKey = "123";
+      const url = `https://www.theaudiodb.com/api/v1/json/${apiKey}/search.php?s=${encodeURIComponent(artist)}`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const image = data?.artists?.[0]?.strArtistThumb || fallbackLogo;
+          albumArt.style.opacity = 0;
+          setTimeout(() => {
+            albumArt.src = image;
+            albumArt.onerror = () => { albumArt.src = fallbackLogo; };
+            albumArt.style.opacity = 1;
+          }, 500);
+        })
+        .catch(() => {
+          albumArt.src = fallbackLogo;
+        });
+    }
+
+    function updatePlayer() {
+      fetch(metadataURL)
+        .then(res => res.json())
+        .then(data => {
+          const raw = data?.icestats?.source?.title || "";
+          if (!raw || raw === lastSong) return;
+
+          lastSong = raw;
+          let [artist, title] = raw.split(" - ");
+          artist = cleanMetadata(artist || "Radio");
+          title = cleanMetadata(title || "Radio");
+
+          if (artist.toLowerCase() === "unknown") artist = "Radio";
+          if (title.toLowerCase() === "unknown") title = "Radio";
+
+          document.getElementById("trackTitle").textContent = title;
+          document.getElementById("trackArtist").textContent = artist;
+
+          if (artist !== "My Radio" && title !== "Radio") {
+            fetchCoverArt(artist);
+          } else {
+            albumArt.src = fallbackLogo;
+          }
+        })
+        .catch(err => {
+          console.error("Metadata fetch failed:", err);
+          albumArt.src = fallbackLogo;
+        });
+    }
+
+    updatePlayer();
+    setInterval(updatePlayer, 15000);
+
+    document.getElementById("playPause").addEventListener("click", () => {
+      const button = document.getElementById("playPause");
+      const badge = document.getElementById("liveBadge");
+
+      if (audio.paused) {
+        audio.play().then(() => {
+          button.textContent = "⏸";
+          button.classList.add("playing");
+          badge.style.display = "inline-block";
+          badge.classList.add("glow");
+        }).catch(err => {
+          console.error("Playback failed:", err);
+        });
+      } else {
+        audio.pause();
+        button.textContent = "▶";
+        button.classList.remove("playing");
+       }).catch(err => {
+          console.error("Playback failed:", err);
+        });
+      } else {
+        audio.pause();
+        button.textContent = "▶";
+        button.classList.remove("playing");
+        badge
+      }
+    });
+
+    document.getElementById("volume").addEventListener("input", (e) => {
+      audio.volume = e.target.value;
+    });
+
+    function toggleTheme() {
+      const player = document.getElementById("radioNestPlayer");
+      player.classList.toggle("dark-theme");
+      player.classList.toggle("light-theme");
+    }
+  </script>
+</div>
+
+</body>
